@@ -19,6 +19,10 @@
     ['integer->char (if (codepoint? v) (integer->char v) 'err)]
     ['eof-object?   (eof-object? v)]
     ['write-byte    (if (byte? v) (write-byte v) 'err)]
+    ['integer?      (if (integer? v) #t #f)]
+    ['boolean?      (if (boolean? v) #t #f)]
+    ['-             (if (integer? v) (- 0 v) 'err)]
+    ['abs           (if (integer? v) (abs v) 'err)]
     ;; TODO: handle -, abs, integer?, etc.
     [_ 'err]))
 

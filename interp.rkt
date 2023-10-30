@@ -56,12 +56,11 @@
     ;; TODO: this works for just a single binding
     ;; but you need to make it work in general
     [(Let (list x) (list e1) e2)
-     (match (interp-env e1 r)
-       ['err 'err]
-       [v (interp-env e2 (ext r x v))])]
+         (match (interp-env e1 r)
+           ['err 'err]
+           [v (interp-env e2 (ext r x v))])]
     ;; TODO: implement let*
     [(Let* xs es e) 'err]))
-
 
 ;; HINT: this is a function that may come in handy.
 ;; It takes a list of expressions and environment

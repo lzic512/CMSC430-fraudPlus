@@ -20,6 +20,9 @@
 
 (define (test run)
   ;; Fraud+ examples
+  (check-equal? (run '(abs -7)) 7)
+  (check-equal? (run '(abs 7)) 7)
+  (check-equal? (run '(- 7)) -7)
   (check-equal? (run '(integer? 7)) #t)
   (check-equal? (run '(integer? #f)) #f)
   (check-equal? (run '(boolean? 7)) #f)
@@ -29,7 +32,10 @@
   (check-equal? (run '(let ((x 1)) x)) 1)
   (check-equal? (run '(let* () 7)) 7)
   (check-equal? (run '(let* ((x 1)) x)) 1)
-  (check-equal? (run '(let ((x 1) (y 2)) (+ x y))) 3)
+  (check-equal? (run '(let* ((x 4) (y x)) (- 4 2))) 2)
+  (check-equal? (run '(let ((x 3) (y 4)) (+ y x y x))) 14)
+  (check-equal? (run '(+ 2)) 2)
+  (check-equal? (run '(let* ((x 4) (y 2)) (+ y x))) 6)
   (check-equal? (run '(let ((x 1))
                         (let* ((x 2) (x x)) x)))
                 2)

@@ -35,17 +35,20 @@
     [(Prim1 p e)        (compile-prim1 p e c)]
     [(Prim2 p e1 e2)    (compile-prim2 p e1 e2 c)]
     ;; TODO: implement n-ary primitives
-    [(PrimN p es)    (seq)]
+    [(PrimN p es)
+     (seq (Mov rax 0)
+	  (Push rax)
+     (compile-primn p es c))]
     [(If e1 e2 e3)      (compile-if e1 e2 e3 c)]
     [(Begin e1 e2)      (compile-begin e1 e2 c)]
     ;; TODO: this only works for single variable binding,
     ;; make it work in general
-    [(Let (list x) (list e1) e2)
-     (compile-let1 x e1 e2 c)]
+    [(Let x e1 e2)
+     (compile-let1 x e1 e2 c c)]
     ;; TODO: implement let*, case, cond
-    [(Let* xs es e)  (seq)]
-    [(Case ev cs el) (seq)]
-    [(Cond cs el)    (seq)]))
+    [(Let* xs es e)  (compile-let2 xs es e c)]
+    [(Case ev cs el) (compile-case ev cs el c)]
+    [(Cond cs el)    (compile-cond cs el c)]))
 
 ;; Value -> Asm
 (define (compile-value v)
@@ -72,6 +75,14 @@
        (compile-e e2 (cons #f c))
        (compile-op2 p)))
 
+(define (compile-primn p es c)
+  (match es
+    ['() (seq (Pop r8))]
+    [(cons a b)
+    (seq (compile-e a (cons #f c))
+	 (compile-op2 p)
+	 (Push rax)
+	 (compile-primn p b c))]))
 
 ;; HINT: Another potentially helpful function that
 ;; emits code to execute each expression and push
@@ -107,11 +118,30 @@
 ;; Id Expr Expr CEnv -> Asm
 ;; NOTE: this is specialized for a single variable binding
 ;; You should write another function for the general case
-(define (compile-let1 x e1 e2 c)
-  (seq (compile-e e1 c)
-       (Push rax)
-       (compile-e e2 (cons x c))
-       (Add rsp 8)))
+(define (compile-let1 x e1 e2 c1 c2)
+  (match x
+    ['() (seq (compile-e e2 c1))]
+    [(cons a rest1)
+    (match e1
+      [(cons b rest2)
+      (seq (compile-e b c2)
+      (Push rax)
+      (compile-let1 rest1 rest2 e2 (cons a c1) c2)
+      (Add rsp 8)
+      )])]))
+
+
+(define (compile-let2 x e1 e2 c)
+  (match x
+    ['() (seq (compile-e e2 c))]
+    [(cons a rest1)
+     (match e1
+       [(cons b rest2)
+        (seq (compile-e b c)
+           (Push rax)
+           (compile-let2 rest1 rest2 e2 (cons a c))
+	   (Add rsp 8)
+	   )])]))
 
 ;; Id CEnv -> Integer
 (define (lookup x cenv)
@@ -121,3 +151,64 @@
      (match (eq? x y)
        [#t 0]
        [#f (+ 8 (lookup x rest))])]))
+
+(define (compile-cond cs e z)
+      (match cs
+	['() 
+	(let ((l1 (gensym 'cond)))
+	(seq (compile-e e z)))]
+	[(cons a res) 
+	(match a
+	[(Clause b c)
+	(let ((l1 (gensym 'cond))
+	(l2 (gensym 'cond)))
+	(seq (compile-e b z)
+	(Cmp 'rax val-false)
+	(Je l1)
+	(compile-e c z)
+	(Jmp l2)
+	(Label l1)
+	(compile-cond res e z)
+	(Label l2)
+	))])]))
+
+
+(define (compile-case e cs el z)
+        (match cs
+	['()
+	(let ((l1 (gensym 'case)))
+	(seq (compile-e el z)))]
+	[(cons a res)
+	(match a
+	[(Clause b c)      
+	(let ((l1 (gensym 'case))
+	(l2 (gensym 'case)))
+	(seq (compile-case-helper e b z)
+	(Cmp 'rax val-false)
+	(Je l1)
+	(compile-e c z)
+	(Jmp l2)
+	(Label l1)
+	(compile-case e res el z)
+	(Label l2)
+	))])]))
+
+(define (compile-case-helper e lst z)
+    (match lst
+    ['() 
+    (let ((l1 (gensym 'caseh)))
+    (seq (Mov 'rax val-false)))]
+    [(cons a res)
+    (let ((l1 (gensym 'caseh))
+    (l2 (gensym 'caseh)))
+    (seq (compile-e e z)
+    (Mov 'rcx 'rax)
+    (compile-e a z)
+    (Cmp 'rax 'rcx)
+    (Je l1)
+    (compile-case-helper e res z)
+    (Jmp l2)
+    (Label l1)
+    (compile-e e z)
+    (Label l2)
+    ))]))

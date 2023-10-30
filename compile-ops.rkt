@@ -56,11 +56,40 @@
           unpad-stack
           (Mov rax val-void))]
     ;; TODO: implement -, abs, integer?, boolean?, etc.
-    ['-        (seq)]
-    ['abs      (seq)]
-    ['not      (seq)]
-    ['integer? (seq)]
-    ['boolean? (seq)]))
+    ['-        (let ((l1 (gensym 'Neg)))
+	        (seq
+ 	 	(Mov 'rcx 0)
+  		(Sub 'rcx 'rax)
+		(Mov 'rax 'rcx)
+		(Label l1)))]
+    ['abs      (let ((l1 (gensym 'abs)))
+	       (seq (Cmp 'rax 0)
+	       (Jge l1)  ; Jump if greater than or equal (non-negativ
+	       (Mov 'rcx 'rax) ; Negate if negative
+	       (Sub 'rax 'rcx)
+	       (Sub 'rax 'rcx)
+	       (Label l1)))]
+    ['not      (let ((l1 (gensym 'not))
+	       (l2 (gensym 'not)))
+	       (seq (Cmp 'rax val-false)  ; Compare 'rax' with 0
+	       (Je l1)  ; Jump if 'rax' was (false), so set to true
+	       (Mov 'rax val-false)
+	       (Jmp l2)
+	       (Label l1)
+	       (Mov 'rax val-true)
+	       (Label l2)))]
+    ['integer? (type-pred mask-int type-int)]
+    ['boolean? (let ((l1 (gensym 'not))
+	       (l2 (gensym 'not)))
+	       (seq (Cmp 'rax val-false)
+	       (Je l1) 
+	       (Cmp 'rax val-true)
+	       (Je l1)
+	       (Mov 'rax val-false)
+	       (Jmp l2)
+	       (Label l1)
+	       (Mov 'rax val-true)
+	       (Label l2)))]))
 
 ;; Op2 -> Asm
 (define (compile-op2 p)

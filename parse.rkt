@@ -19,8 +19,10 @@
     [(list 'if e1 e2 e3)       (If (parse e1) (parse e2) (parse e3))]
     [(list 'let  bs e)         (parse-let  bs e)]
     [(list 'let* bs e)         (parse-let* bs e)]
-    [(cons 'cond cs)           (parse-cond cs)]
-    [(cons 'case (cons ev cs)) (parse-case ev cs)]
+    [(list 'cond cs ... (list a b))
+     (Cond (clause-helper cs '()) (parse b))]
+    [(list 'case val cs ... (list a b))
+     (Case (parse val) (case-helper cs '()) (parse b))]
     [_                         (error "Parse error" s)]))
 
 ;; Any -> Boolean
@@ -74,6 +76,25 @@
        [(Case ev cs el)
         (Case ev (cons (Clause (parse-datums ds) (parse e)) cs) el)])]
     [_ (error "parse error")]))
+
+(define (clause-helper cs acc)
+      (match cs
+        ['() acc]
+        [(cons a rest)
+         (match a
+           [(list b c) (clause-helper rest (append acc (list (Clause (parse b) (parse c)))))] )]))
+
+(define (case-helper cs acc)
+      (match cs
+        ['() acc]
+        [(cons a rest)
+         (match a
+           [(list b c) (case-helper rest (append acc (list (Clause (case-helper2 b '())(parse c)))))] )]))
+(define (case-helper2 cs acc)
+    (match cs
+      ['() acc] 
+      [(cons a rest)
+        (case-helper2 rest (append acc (list (parse a))))]))
 
 ;; S-Expr -> [Listof Datum]
 (define (parse-datums ds)
