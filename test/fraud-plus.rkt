@@ -37,7 +37,7 @@
   (check-equal? (run '(+ 2)) 2)
   (check-equal? (run '(let* ((x 4) (y 2)) (+ y x))) 6)
   (check-equal? (run '(let ((x 1))
-                        (let* ((x 2) (x x)) x)))
+                      (let* ((x 2) (x x)) x)))
                 2)
   (check-equal? (run '(+)) 0)
   (check-equal? (run '(+ 5)) 5)

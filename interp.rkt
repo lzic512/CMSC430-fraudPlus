@@ -37,7 +37,7 @@
              ['err 'err]
              [v2 (interp-prim2 p v1 v2)])])]
     ;; TODO: implement n-ary primitive
-    [(PrimN p es) 'err]
+    [(PrimN p es) (interp-primn p es r 0)]
     [(If p e1 e2)
      (match (interp-env p r)
        ['err 'err]
@@ -50,17 +50,16 @@
        ['err 'err]
        [v    (interp-env e2 r)])]
     ;; TODO: implement cond
-    [(Cond cs e) 'err]
+    [(Cond cs e) (interp-cond cs e r)]
     ;; TODO: implement case
-    [(Case ev cs el) 'err]
+    [(Case ev cs el) (interp-case (interp-env ev r) cs el r)]
     ;; TODO: this works for just a single binding
     ;; but you need to make it work in general
-    [(Let (list x) (list e1) e2)
-         (match (interp-env e1 r)
-           ['err 'err]
-           [v (interp-env e2 (ext r x v))])]
+    [(Let x e1 e2)
+     (interp-let1 x e1 e2 r r)]
     ;; TODO: implement let*
-    [(Let* xs es e) 'err]))
+    [(Let* xs es e) 
+     (interp-let2 xs es e r)]))
 
 ;; HINT: this is a function that may come in handy.
 ;; It takes a list of expressions and environment
@@ -79,6 +78,63 @@
        [v (match (interp*-env es r)
             ['err 'err]
             [vs (cons v vs)])])]))
+
+(define (interp-primn p es r m)
+  (match es
+    ['() m]
+    [(cons a b)
+     (interp-primn p b r (interp-prim2 p m (interp-env a r)))]))
+
+(define (interp-let1 xs es e2 r1 r2)
+  (match xs
+    ['() (interp-env e2 r1)]
+    [(cons a b)
+     (match es 
+     [(cons c d)
+      (match (interp-env c r2)
+       ['err 'err]
+       [v (interp-let1 b d e2 (ext r1 a v) r2)])])]))
+
+(define (interp-let2 xs es e2 r)
+  (match xs
+    ['() (interp-env e2 r)]
+    [(cons a b)
+     (match es
+       [(cons c d)
+        (match (interp-env c r)
+       ['err 'err]
+       [v (interp-let2 b d e2 (ext r a v))])])]))
+
+(define (interp-cond es e r)
+  (match es
+    ['() (interp-env e r)]
+    [(cons a b)
+     (match a
+       [(Clause c d) 
+	(if (interp-env c r)
+            (interp-env d r)
+            (interp-cond b e r))])]))
+
+(define (interp-case ev es e r)
+  (match es
+    ['() (interp-env e r)]
+    [(cons a b)
+     (match a
+       [(Clause c d) 
+	  (if (case-helper ev c r)
+	      (interp-env d r)
+	      (interp-case ev b e r))])]))
+
+(define (case-helper e cs r)
+  (if (member e (list-maker cs '() r))
+      #t
+      #f))
+
+(define (list-maker cs es r)
+  (match cs
+    ['() es]
+    [(cons a b)
+     (list-maker b (cons (interp-env a r) es) r)]))
 
 ;; Env Id -> Value
 (define (lookup r x)
